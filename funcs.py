@@ -1,5 +1,6 @@
 from random import choice, shuffle, randint
 from pygame import *
+import time as tm
 
 #Функции
 #поиск пустых ячеек
@@ -35,7 +36,7 @@ def generate(minn,maxn):
         field[row][col] = chosen
     nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     n = 0
-    while cell is not None:
+    while cell:
         cell = empty(field)
         if field[row].count(0) == 0:
             nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -46,12 +47,13 @@ def generate(minn,maxn):
             row, col = cell
             shuffle(nums)
             chosen = choice(nums)
-            if check(field, chosen, row, col) == False and n == 5:
+            checking = check(field, chosen, row, col)
+            if checking == False and n == 5:
                 n = 0
                 field[row] = [0] * 9 
                 nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
                 break 
-            if check(field, chosen, row, col) == False:
+            if checking == False:
                 n += 1
                 break
             field[row][col] = chosen
@@ -60,7 +62,7 @@ def generate(minn,maxn):
         if not cell:
             break
     field2 = [row[:] for row in field]
-    empty_cells = randint(minn,maxn+1) 
+    empty_cells = randint(minn,maxn) 
     cells = [(i, j) for i in range(9) for j in range(9)]
     shuffle(cells)
 
@@ -97,11 +99,13 @@ def line_coord():
     return lines
 
 # Функция для проверки клика на квадрате сетки
-def check_click(x_, y_, coordinates):
+def check_click(x_, y_, coordinates, selected_square):
     for x, y in coordinates:
         if x <= x_ <= x + 55 and y <= y_ <= y + 56:
             # Возвращаем координаты выделенного квадрата
             return x, y
+        elif x_ >= 20 and x_ <= 110 and y_ >= 295 and y_ <= 530:
+            return selected_square
     return None
 #Проверяем вставленные нами числа
 def check_right(selected_square, field, field2, num, mistakes):
@@ -154,15 +158,14 @@ def win_lose(field,field2, mistakes):
 
 #Сколько осталось чисел каждого вида
 def nums(field2):
-    dict = {}
+    dict = {1: 9, 2:9, 3:9, 4:9, 5:9, 6:9, 7:9, 8:9, 9:9}
     for i in field2:
         for j in i:
             if j != 0:
                 if len(str(j)) == 2:
-                    if str(j)[1] == '!' or str(j)[1] == '+':
-                        dict.get(int(str(j)[0]), 0) +1
-                else:
-                    dict.get(j, 0)+1
+                    if j[1] == '.':
+                        continue
+                dict[int(str(j)[0])]=dict[int(str(j)[0])]-1
 
     return dict
 
@@ -203,7 +206,7 @@ def use_hint(field2, field):
                             f.write(' '.join(str(nums) for nums in row))
                             f.write('\n')
     with open('coins.txt', 'r', encoding='utf-8') as f:
-        money = int(f.readlines()[0]) - 100
+        money = int(f.readline()) - 100
     with open('coins.txt', 'w', encoding = 'utf-8') as f:
         f.write(str(money))
     return money
@@ -233,3 +236,16 @@ def playing_field(minn,maxn, gen, field2, field):
             f.write(' '.join(str(num) if num != 0 else '_' for num in row))
             f.write('\n')
     return field,field2
+
+def nums_mouse():
+    nums = {}
+    x, y = -20, 240
+    for i in range(1,10):
+        if i%2 != 0:
+            nums[i] = [x+50,y+50]
+            x,y = x+50,y+50
+        else:
+            nums[i] = [x+50,y]
+            x -=50
+    nums['x'] = [x+50,y]
+    return nums
