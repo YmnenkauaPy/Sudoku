@@ -115,6 +115,7 @@ while play:
                     dif = ''
                     bool = None
                     mistakes = 0
+                    n_ = 1
                 if clicked_button == 'hint' and dif and bool == None and not int(money) < 100:
                     money = use_hint(field2,field, resource_path(dir + r'\coins.txt'))
                     field, field2=playing_field(difs[dif][0], difs[dif][1], False, field2, field, resource_path(dir + r'\field_right.txt'), resource_path(dir + r'\field.txt'))
