@@ -31,6 +31,7 @@ def generate(minn, maxn):
 
         row, col = empty_cells[0]
         for num in nums:
+            num = choice(nums)
             if check(field, num, row, col):
                 field[row][col] = num
                 if generate_recursive(field, empty_cells[1:]):
@@ -40,7 +41,7 @@ def generate(minn, maxn):
         return False
     
     field = [[0 for _ in range(9)] for _ in range(9)]
-    nums = {1, 2, 3, 4, 5, 6, 7, 8, 9}
+    nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     generate_recursive(field, empty(field))
 
     field2 = [row[:] for row in field]
@@ -129,12 +130,14 @@ def check_right(selected_square, field, field2, num, mistakes, width, height, ne
                 if num == numr:
                     field2[y][x] = str(num) + '!'
 
-                elif num != numr and num != 0:
+                elif num != numr and num != 0 and num != field2[y][x][0]:
                     field2[y][x] = str(num) + '.'
                     mistakes += 1
 
                 elif num == 0:
                     field2[y][x] = num
+                elif num == field2[y][x][0]:
+                    field2[y][x] = 0
         else:
             if num == numr:
                 field2[y][x] = str(num) + '!'
