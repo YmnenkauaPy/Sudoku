@@ -1,6 +1,7 @@
 from random import shuffle, randint, choice
 import os, sys
-from pygame import *
+import numpy as np
+from pygame import draw
 
 #Функции
 #поиск пустых ячеек
@@ -8,7 +9,7 @@ def empty(board):
     empty_cells = []
     for i in range(9):
         for j in range(9):
-            if board[i][j] == 0:
+            if board[i, j] == 0:
                 empty_cells.append((i, j))
     return empty_cells
 
@@ -39,12 +40,12 @@ def generate(minn, maxn):
                 field[row][col] = 0
 
         return False
-    
-    field = [[0 for _ in range(9)] for _ in range(9)]
+
+    field = (np.full([9, 9], 0, dtype = 'int'))
     nums = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     generate_recursive(field, empty(field))
 
-    field2 = [row[:] for row in field]
+    field2 = [row.tolist() for row in field]
     empty_cells = randint(minn, maxn)
     cells = [(i, j) for i in range(9) for j in range(9)]
     shuffle(cells)
@@ -78,13 +79,12 @@ def net(field2, num_font, screen, width, new_width, height, new_height):
             y = i * (55/height)*new_height
             if str(field2[i][j]) != '0':
                 if len(str(field2[i][j])) == 2:
-                    for b in sign:
-                        if field2[i][j][1] == b:
-                            num = num_font.render(str(field2[i][j])[0], True, sign[b])
+                    num = num_font.render(str(field2[i][j])[0], True, sign[str(field2[i][j])[1]])
                 else:
                     num = num_font.render(str(field2[i][j]), True, (0,0,0))
                 screen.blit(num, (x+(145/width)*new_width, y+(70)/height*new_height))
 
+#Создает координаты кнопок
 def create_grid(new_width, new_height, width, height):
     coordinates = []
     for row in range(9):
@@ -98,6 +98,7 @@ def line_coord(width, new_width, height, new_height):
     for row in range(9):
         if (row+1)%4 == 0:
             lines.append((9*(50/width*new_width)+(170/width*new_width), (row+1)*(41/height*new_height)+(65/height*new_height), 140/width*new_width, (row+1)*(41/height*new_height)+(65/height*new_height)))
+
     #Вертикальные
     for col in range(9):
         if (col+1)%4 == 0:
@@ -107,7 +108,8 @@ def line_coord(width, new_width, height, new_height):
 
 # Функция для проверки клика на квадрате сетки
 def check_click(x_, y_, coordinates, selected_square, width, new_width, height, new_height):
-    for x, y in coordinates:
+    coors = np.array(coordinates)
+    for x, y in coors:
         if x <= x_ <= x + 44/width*new_width and y <= y_ <= y + 43/height*new_height:
             # Возвращаем координаты выделенного квадрата
             return x, y
@@ -116,54 +118,51 @@ def check_click(x_, y_, coordinates, selected_square, width, new_width, height, 
     return None
 
 #Проверяем вставленные нами числа
-def check_right(selected_square, field, field2, num, mistakes, width, height, new_width, new_height, path):
-    x,y = selected_square
-    # Считаем координаты этой цифры в field2
-    x = round(x/(60/width*new_width))-2
-    y = round(y/(57/height*new_height))-1
+def check_right(x, y, field, field2, num, mistakes, path):
     numr = str(field[y][x])
     if field2[y][x] == 0 or len(str(field2[y][x])) == 2:
         if len(str(field2[y][x])) == 2:
             if str(field2[y][x])[1] == '!' or str(field2[y][x])[1] == '+':
                 return mistakes
-            else:
-                if num == numr:
-                    field2[y][x] = str(num) + '!'
+            elif num == numr:
+                field2[y][x] = str(num) + '!'     
 
-                elif num != numr and num != 0 and num != field2[y][x][0]:
-                    field2[y][x] = str(num) + '.'
-                    mistakes += 1
+            elif num != 0 and num != field2[y][x][0]:
+                field2[y][x] = str(num) + '.'
+                mistakes += 1
 
-                elif num == 0:
-                    field2[y][x] = num
-                elif num == field2[y][x][0]:
-                    field2[y][x] = 0
+            elif num == 0:
+                field2[y][x] = num
+
+            elif num == field2[y][x][0]:
+                field2[y][x] = 0
         else:
             if num == numr:
                 field2[y][x] = str(num) + '!'
 
-            elif num != numr and num != 0:
+            elif num != 0:
                 field2[y][x] = str(num) + '.'
                 mistakes += 1
+
         with open(path, 'w', encoding='utf-8') as f:
                 for row in field2:
                     f.write(' '.join(str(nums) for nums in row))
                     f.write('\n')
     return mistakes
+
 #Проверка проигрыша или выигрыша
 def win_lose(field,field2, mistakes):
     if mistakes >= 5:
         return 'YOU LOSE'
     #Считает все "за" и "против"
     yes = sum([1 for i in range(9) for j in range(9) if str(field2[i][j])[0] == str(field[i][j])])
-    no = sum([1 for i in range(9) for j in range(9) if str(field2[i][j])[0] != str(field[i][j])])
+    no = 81-yes
     if no == 0 and yes == 81:
         no,yes = 0,0
         return 'YOU WIN'
-    elif yes != 81 and no !=0:
+    else:
         no,yes = 0,0
         return 'YOU LOSE'
-    return None
 
 #Сколько осталось чисел каждого вида
 def nums(field2):
@@ -171,9 +170,8 @@ def nums(field2):
     for i in field2:
         for j in i:
             if j != 0:
-                if len(str(j)) == 2:
-                    if j[1] == '.':
-                        continue
+                if len(str(j)) == 2 and j[1] == '.':
+                    continue
                 dict[int(str(j)[0])]=dict[int(str(j)[0])]-1
 
     return dict
@@ -202,7 +200,7 @@ def square(selected_square, coordinates, field2, width, height, new_width, new_h
 def use_hint(field2, field, path):
     n = sum(1 for i in range(9) for j in range(9) if field2[i][j] == 0)
     rand = randint(1, n)
-    b=0
+    b = 0
     for i in range(9):
         for j in range(9):
             if field2[i][j] == 0:
@@ -234,30 +232,7 @@ def nums_mouse(width, height, new_width, new_height):
     return nums
 
 #Проверяет какая кнопка (квадрат) был(а) нажат(а)
-def clicker(width, height, new_width, new_height, x_pos, y_pos, difs):
-    actions = {
-        'easy': [200/width*new_width, 584/width*new_width, 300/height*new_height, 342/height*new_height],
-        'menu': [668/width*new_width, 788/width*new_width, 0/height*new_height, 81/height*new_height],
-        'medium': [200/width*new_width, 584/width*new_width, 354/height*new_height, 404/height*new_height],
-        'hard': [200/width*new_width, 584/width*new_width, 408/height*new_height, 458/height*new_height],
-        'difficult': [200/width*new_width, 584/width*new_width, 462/height*new_height, 508/height*new_height],
-        choice(list(difs.keys())): [200/width*new_width, 584/width*new_width, 512/height*new_height, 562/height*new_height],
-        'hint': [30/width*new_width, 100/width*new_width, 80/height*new_height, 155/height*new_height],
-        'cross': [524/width*new_width, 575/width*new_width, 120/height*new_height, 195/height*new_height],
-        'key': [20/width*new_width, 300/width*new_width, 20/height*new_height, 60/height*new_height],
-        'mouse': [20/width*new_width, 300/width*new_width, 60/height*new_height, 115/height*new_height],
-        '1': [20/width*new_width, 40/width*new_width, 228/height*new_height, 250/height*new_height],
-        '2': [55/width*new_width, 85/width*new_width, 229/height*new_height, 252/height*new_height],
-        '3': [20/width*new_width, 46/width*new_width, 267/height*new_height, 292/height*new_height],
-        '4': [56/width*new_width, 89/width*new_width, 264/height*new_height, 292/height*new_height],
-        '5': [20/width*new_width, 46/width*new_width, 305/height*new_height, 329/height*new_height],
-        '6': [58/width*new_width, 86/width*new_width, 304/height*new_height, 329/height*new_height],
-        '7': [20/width*new_width, 48/width*new_width, 343/height*new_height, 367/height*new_height],
-        '8': [59/width*new_width, 86/width*new_width, 339/height*new_height, 372/height*new_height],
-        '9': [18/width*new_width, 46/width*new_width, 379/height*new_height, 403/height*new_height],
-        'del': [58/width*new_width, 84/width*new_width, 379/height*new_height, 403/height*new_height],
-        'help': [555/width*new_width, 775/width*new_width, 70/height*new_height, 100/height*new_height]
-    }
+def clicker(x_pos, y_pos, actions):
     for i in actions:
         if x_pos > actions[i][0] and x_pos < actions[i][1] and y_pos > actions[i][2] and y_pos < actions[i][3]:
             return i
@@ -265,7 +240,7 @@ def clicker(width, height, new_width, new_height, x_pos, y_pos, difs):
 
 #files
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """ Get absolute path to resource"""
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
@@ -273,3 +248,59 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
+
+#Создаем координаты для мышки
+def actions_coor_menu(width, height, new_width, new_height, difs):
+    actions = {
+        'easy': np.array([200/width*new_width, 584/width*new_width, 300/height*new_height, 342/height*new_height]),
+        'medium': np.array([200/width*new_width, 584/width*new_width, 354/height*new_height, 404/height*new_height]),
+        'hard': np.array([200/width*new_width, 584/width*new_width, 408/height*new_height, 458/height*new_height]),
+        'difficult': np.array([200/width*new_width, 584/width*new_width, 462/height*new_height, 508/height*new_height]),
+        choice(list(difs.keys())): np.array([200/width*new_width, 584/width*new_width, 512/height*new_height, 562/height*new_height]),
+        'key': np.array([20/width*new_width, 300/width*new_width, 20/height*new_height, 60/height*new_height]),
+        'mouse': np.array([20/width*new_width, 300/width*new_width, 60/height*new_height, 115/height*new_height]),
+        'help': np.array([555/width*new_width, 775/width*new_width, 70/height*new_height, 100/height*new_height])
+        }
+    return actions
+
+def actions_coor_mouse(width, height, new_width, new_height):
+    actions = {
+        'menu': np.array([668/width*new_width, 788/width*new_width, 0/height*new_height, 81/height*new_height]),
+        'hint': np.array([30/width*new_width, 100/width*new_width, 80/height*new_height, 155/height*new_height]),
+        'cross': np.array([524/width*new_width, 575/width*new_width, 120/height*new_height, 195/height*new_height]),
+        '1': np.array([20/width*new_width, 40/width*new_width, 228/height*new_height, 250/height*new_height]),
+        '2': np.array([55/width*new_width, 85/width*new_width, 229/height*new_height, 252/height*new_height]),
+        '3': np.array([20/width*new_width, 46/width*new_width, 267/height*new_height, 292/height*new_height]),
+        '4': np.array([56/width*new_width, 89/width*new_width, 264/height*new_height, 292/height*new_height]),
+        '5': np.array([20/width*new_width, 46/width*new_width, 305/height*new_height, 329/height*new_height]),
+        '6': np.array([58/width*new_width, 86/width*new_width, 304/height*new_height, 329/height*new_height]),
+        '7': np.array([20/width*new_width, 48/width*new_width, 343/height*new_height, 367/height*new_height]),
+        '8': np.array([59/width*new_width, 86/width*new_width, 339/height*new_height, 372/height*new_height]),
+        '9': np.array([18/width*new_width, 46/width*new_width, 379/height*new_height, 403/height*new_height]),
+        'del': np.array([58/width*new_width, 84/width*new_width, 379/height*new_height, 403/height*new_height]),
+        }
+    return actions
+
+def actions_coor_game(width, height, new_width, new_height):
+    actions = {   
+        'menu': np.array([668/width*new_width, 788/width*new_width, 0/height*new_height, 81/height*new_height]),
+        'hint': np.array([30/width*new_width, 100/width*new_width, 80/height*new_height, 155/height*new_height]),
+        'cross': np.array([524/width*new_width, 575/width*new_width, 120/height*new_height, 195/height*new_height]),
+        }
+    return actions
+
+
+def draw_border(screen, x_abs, y_abs, width_abs, height_abs):
+    # Рисуем верхний бордюр, нижний, левый, правый
+    draw.rect(screen, (0,0,0), (x_abs, y_abs, width_abs, 1))
+    draw.rect(screen, (0,0,0), (x_abs, y_abs + height_abs - 1, width_abs, 1))
+    draw.rect(screen, (0,0,0), (x_abs, y_abs, 1, height_abs))
+    draw.rect(screen, (0,0,0), (x_abs + width_abs - 1, y_abs, 1, height_abs))
+
+def get_sizes(x_rel, y_rel, width_rel, height_rel, width, height):
+    x_abs = x_rel * width
+    y_abs = y_rel * height
+    width_abs = width_rel * width
+    height_abs = height_rel * height
+
+    return [x_abs, y_abs, width_abs, height_abs]
