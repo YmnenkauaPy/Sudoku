@@ -1,8 +1,8 @@
 #Модули
 from pygame import *
-from random import choice
-from funcs import *
-from classes import *
+import funcs
+import os
+import classes
 import time as tm
 import locale
 
@@ -28,7 +28,7 @@ win_font = font.Font(font_path, 40)
 set_font = font.Font(font_path, 24)
 
 #Монеты
-with open(resource_path(dir + r'\coins.txt'), 'r', encoding='utf-8') as f:
+with open(funcs.resource_path(dir + r'\coins.txt'), 'r', encoding='utf-8') as f:
     money = f.readlines()[0]
 
 mistakes = 0
@@ -43,12 +43,11 @@ rainbow_colors = [
     (160, 50, 255)   # Фиолетовый
 ]
 
-time_txt = Text('0',font_path, 30, 0, 40/width, 6/height, 100/width, 50/height, (0,0,0))
 clock_font = font.Font(font_path2, 60)
 clock_txt = clock_font.render('⌚', True, (0,0,0))
 
 #Сложности, нужные переменные 
-difs = {'easy':[20,30], 'medium':[30,35], 'hard':[35,45], 'difficult':[45,55]} #+random
+difs = {'easy':[20,30], 'medium':[30,35], 'hard':[35,45], 'difficult':[45,55]} #+ random
 dif = '' #сложность
 field = '' #правильное поле
 field2 = '' #поле с пустыми ячейками
@@ -61,7 +60,7 @@ selected_square = None
 key_ = None #для версии с мышкой
 
 #Создаем поле
-coordinates = create_grid(new_width, new_height, width, height) 
+coordinates = funcs.create_grid(new_width, new_height, width, height) 
 
 selected_squares = set()
 key_messages = {
@@ -96,7 +95,7 @@ while play:
 
         elif e.type == MOUSEBUTTONDOWN:
             x_pos, y_pos = mouse.get_pos()
-            selected_square = check_click(x_pos, y_pos, coordinates, selected_square, width, new_width, height, new_height)
+            selected_square = funcs.check_click(x_pos, y_pos, coordinates, selected_square, width, new_width, height, new_height)
             if selected_square:
                 # Добавляем или удаляем квадрат из множества выделенных квадратов
                 if selected_square in selected_squares:
@@ -104,97 +103,127 @@ while play:
                 else:
                     selected_squares.add(selected_square)
 
-            clicked_button = clicker(width, height, new_width, new_height, x_pos, y_pos, difs)
-                
-            if clicked_button:
+            mode = 'menu'
+
+            if not dif:
+                mode = 'menu'
+                actions = funcs.actions_coor_menu(width, height, new_width, new_height, difs)
+
+            if dif and mouse_:
+                mode = 'game_mouse'
+                actions = funcs.actions_coor_mouse(width, height, new_width, new_height)
+
+            if dif and keyboard:
+                mode = 'game_keys'
+                actions = funcs.actions_coor_game(width, height, new_width, new_height)
+
+            clicked_button = funcs.clicker(x_pos, y_pos, actions)
+            
+            #if actions were in menu's version
+            if clicked_button and mode == 'menu':
                 if clicked_button in ['easy', 'medium', 'hard', 'difficult'] and not dif:
                     dif = clicked_button
-                    field, field2=playing_field(difs[dif][0], difs[dif][1], True, field2, field, resource_path(dir + r'\field_right.txt'), resource_path(dir + r'\field.txt'))
+                    field, field2 = funcs.playing_field(difs[dif][0], difs[dif][1], True, field2, field, funcs.resource_path(dir + r'\field_right.txt'), funcs.resource_path(dir + r'\field.txt'))
                     start_time = tm.time()
-                if clicked_button == 'menu' and dif:
-                    dif = ''
-                    bool = None
-                    mistakes = 0
-                    n_ = 1
-                if clicked_button == 'hint' and dif and bool == None and not int(money) < 100:
-                    money = use_hint(field2,field, resource_path(dir + r'\coins.txt'))
-                    field, field2=playing_field(difs[dif][0], difs[dif][1], False, field2, field, resource_path(dir + r'\field_right.txt'), resource_path(dir + r'\field.txt'))
-                if clicked_button == 'cross' and dif and bool != None:
-                    bool = 'End'
-                if clicked_button == 'key' and not dif:
+
+                if (clicked_button == 'key' or clicked_button == 'mouse') and not dif:
                     if not keyboard:
                         keyboard = True
                         mouse_ = False
                     else:
                         keyboard = False
-                        mouse_ = True
-                if clicked_button == 'mouse' and not dif:
-                    if not mouse_:
-                        keyboard = False
-                        mouse_ = True
-                    else:
-                        keyboard = True
-                        mouse_ = False     
-                if clicked_button in ['1', '2', '3', '4', '5', '6', '7', '8', '9'] and dif and bool == None and selected_square:
-                    numeric = clicked_button
-                if clicked_button == 'del' and dif and bool == None and selected_square:
-                    numeric = 0
+                        mouse_ = True  
+
                 if clicked_button == 'help' and not dif:
-                    file_path = os.path.join(dir, resource_path(dir + r'\Help.docx'))
+                    file_path = funcs.os.path.join(dir, funcs.resource_path(dir + r'\Help.docx'))
                     if os.path.exists(file_path):
                         # Открытие файла
                         os.startfile(file_path)
 
+            #if actions were in mouse's version
+            if clicked_button and mode == 'game_mouse':
+                if clicked_button == 'hint' and dif and bool == None and not int(money) < 100:
+                    money = funcs.use_hint(field2,field, funcs.resource_path(dir + r'\coins.txt'))
+                    field, field2 = funcs.playing_field(difs[dif][0], difs[dif][1], False, field2, field, funcs.resource_path(dir + r'\field_right.txt'), funcs.resource_path(dir + r'\field.txt'))
+                
+                if clicked_button == 'cross' and dif and bool != None:
+                    bool = 'end'
+
+                if clicked_button in ['1', '2', '3', '4', '5', '6', '7', '8', '9'] and dif and bool == None and selected_square:
+                    numeric = clicked_button
+                    
+                if clicked_button == 'del' and dif and bool == None and selected_square:
+                    numeric = 0
+
+                if clicked_button == 'menu' and dif:
+                    dif = ''
+                    bool = None
+                    mistakes = 0
+                    n_ = 1
+
+            #if actions were in keyboard's version
+            if clicked_button and mode == 'game_keys':
+                if clicked_button == 'hint' and dif and bool == None and not int(money) < 100:
+                    money = funcs.use_hint(field2,field, funcs.resource_path(dir + r'\coins.txt'))
+                    field, field2 = funcs.playing_field(difs[dif][0], difs[dif][1], False, field2, field, funcs.resource_path(dir + r'\field_right.txt'), funcs.resource_path(dir + r'\field.txt'))
+                
+                if clicked_button == 'cross' and dif and bool != None:
+                    bool = 'end'
+                
+                if clicked_button == 'menu' and dif:
+                    dif = ''
+                    bool = None
+                    mistakes = 0
+                    n_ = 1
+        
         elif e.type == KEYDOWN and not mouse_:
             if e.key in key_messages and selected_square and not mistakes >= 5:
                 numeric = key_messages[e.key]
 
-            if e.key == K_BACKSPACE:
+            if e.key == K_BACKSPACE and bool != 'end':
                 numeric = 0
-                check_right(selected_square, field, field2, numeric, mistakes, width, height, new_width, new_height,resource_path(dir + r'\field.txt'))
-                field, field2=playing_field(difs[dif][0], difs[dif][1], False, field2, field,resource_path(dir + r'\field_right.txt'), resource_path(dir + r'\field.txt'))
+                field, field2 = funcs.playing_field(difs[dif][0], difs[dif][1], False, field2, field, funcs.resource_path(dir + r'\field_right.txt'), funcs.resource_path(dir + r'\field.txt'))
+    
     #Игровое поле
     if dif:
         #Текст, переменные
-        line_coordinates = line_coord(width, new_width, height, new_height)
-        mistakes_txt = Text('Mistakes: ' + str(mistakes) +'/5', font_path, int(25/width*new_width), 0, 264/width, 5/height, 300/width, 60/height, (0,0,0))
-        diff_txt = Text('Difficulty: ' + dif, font_path, int(25/width*new_width), 0, 15/width, 560/height, 340/width, 35/height, (0,0,0))
-        hint = Image('hint.png', 27/width, 79/height, (75/width,80/width), 85/width, 90/height, dir)
-        menu = Image('menu.png', 665/width, 10/height, (100/width,70/height), 100/width, 75/height, dir)
+        managercl = classes.ManagerClasses(screen, new_width, new_height)
+
+        line_coordinates = funcs.line_coord(width, new_width, height, new_height)
         win_font = font.Font(font_path, int(40/width*new_width))
-        price = Text('$100', font_path, int(28/width*new_width), 0, 40/width, 180/height, 55/width, 28/height, (0,0,0))
-        cross = transform.smoothscale(image.load(resource_path(dir + r'\cross.png')), (56/width*new_width, 91/height*new_height))
+        cross = transform.smoothscale(image.load(funcs.resource_path(dir + r'\cross.png')), (56/width*new_width, 91/height*new_height))
 
         coor = []   
         n = 0
         #screen.blit
         screen.fill((255,255,255))
-        mistakes_txt.draw(screen,new_width, new_height)
-        diff_txt.draw(screen,new_width, new_height)
-        time_txt.draw(screen,new_width, new_height)
-        screen.blit(clock_txt, (37/width*new_width, 8/height*new_height))
-        price.draw(screen,new_width, new_height)
-        hint.draw(screen, new_width, new_height)
-        menu.draw(screen, new_width, new_height)
+        managercl.manage('text', ['Mistakes: ' + str(mistakes) +'/5', font_path, int(25/width*new_width), 0, 264/width, 5/height, 300/width, 60/height, (0,0,0)])
+        managercl.manage('text', ['Difficulty: ' + dif, font_path, int(25/width*new_width), 0, 15/width, 560/height, 340/width, 35/height, (0,0,0)])
+        
+        managercl.manage('text', ['$100', font_path, int(28/width*new_width), 0, 40/width, 180/height, 55/width, 28/height, (0,0,0)])
+        managercl.manage('image', ['hint.png', 27/width, 79/height, (75/width,80/width), 85/width, 90/height, dir])
+        managercl.manage('image', ['menu.png', 665/width, 10/height, (100/width,70/height), 100/width, 75/height, dir])
 
         num_font = font.Font(font_path, int(25/width*new_width))
+
         #циклы for, функции
-        coordinates = create_grid(new_width, new_height, width, height)
-        net(field2, num_font, screen, width, new_width, height, new_height)
-        dict = nums(field2)
+        coordinates = funcs.create_grid(new_width, new_height, width, height)
+        funcs.net(field2, num_font, screen, width, new_width, height, new_height)
+        dict = funcs.nums(field2)
 
         if mouse_:
-            for i in nums_mouse(width, height, new_width, new_height):
+            for i in funcs.nums_mouse(width, height, new_width, new_height):
                 number = num_font.render(str(i), True, (90, 145, 150))
-                screen.blit(number, nums_mouse(width, height, new_width, new_height)[i])
-
+                screen.blit(number, funcs.nums_mouse(width, height, new_width, new_height)[i])
+        
+        #Отрисовка сколько осталось циферок
         for i in dict:
             num = num_font.render(str(i) + ': ' + str(dict[i]), True, (0,0,0))
             screen.blit(num, (656/width*new_width, (80/height*new_height)+i*(36/height*new_height)))
 
         for x, y in coordinates:
             if selected_square != None:
-                coor= square(selected_square, coordinates, field2, new_width, new_height, width, height)
+                coor= funcs.square(selected_square, coordinates, field2, new_width, new_height, width, height)
             # Определяем цвет для квадратов
             if (x, y) == selected_square:
                 color = (255,0,0)
@@ -214,80 +243,80 @@ while play:
         #Проверяем закончена ли игра
         for i in range(9):
             for j in range(9):
-                if len(str(field2[i][j])) == 2:
-                    if field2[i][j][1] == '.':
-                        n += 1
+                if len(str(field2[i][j])) == 2 and field2[i][j][1] == '.':
+                    n += 1
                 if field2[i][j] == 0:
                     n += 1
-        if n == 0 and bool != 'End' or mistakes >= 5 and bool != 'End':    
-            bool = win_lose(field,field2,mistakes)
+        if (n == 0 or mistakes >= 5) and bool != 'end':    
+            bool = funcs.win_lose(field, field2, mistakes)
 
         #Концовка
-        if bool != None and bool != 'End':
+        if bool and bool != 'end':
             draw.rect(screen, (255, 255, 255), (180/width*new_width, 115/height*new_height, int(400/width*new_width), int(330/height*new_height)))  # Рисуем квадрат
             end = win_font.render(bool, True, (0,0,0))
-            if bool == 'YOU WIN' and not n_ > 1:
+            if bool == 'YOU WIN' and n_ == 0:
                 n_+=1
-                with open(resource_path(dir + r'\coins.txt'), 'r', encoding = 'utf-8') as f:
+                with open(funcs.resource_path(dir + r'\coins.txt'), 'r', encoding = 'utf-8') as f:
                     money = int(f.readline())+(100-6*mistakes)
-                with open(resource_path(dir + r'\coins.txt'), 'w', encoding = 'utf-8') as f:
+                with open(funcs.resource_path(dir + r'\coins.txt'), 'w', encoding = 'utf-8') as f:
                     f.write(str(money))
+                    f.close()
             screen.blit(end, (240/width*new_width, 230/height*new_height))
             screen.blit(cross, (532/width*new_width, 115/height*new_height))
 
-        if bool == None and bool != 'End':
+        if not bool:
             end_time = tm.time()
+
         #Проверка чисел
         if numeric != '':
-            mistakes = check_right(selected_square, field, field2, numeric, mistakes, width, height, new_width, new_height, resource_path(dir + r'\field.txt'))
-            field, field2=playing_field(difs[dif][0], difs[dif][1], False, field2, field, resource_path(dir + r'\field_right.txt'), resource_path(dir + r'\field.txt'))
+            x,y = selected_square
+            # Считаем координаты этой цифры в field2
+            x = round(x/(60/width*new_width))-2
+            y = round(y/(57/height*new_height))-1
+            mistakes = funcs.check_right(x, y, field, field2, numeric, mistakes, funcs.resource_path(dir + r'\field.txt'))
+            field, field2 = funcs.playing_field(difs[dif][0], difs[dif][1], False, field2, field, funcs.resource_path(dir + r'\field_right.txt'), funcs.resource_path(dir + r'\field.txt'))
             numeric = ''
+
         #время
-        minute,sec = int((end_time-start_time)//60), int((end_time-start_time)%60)
         clock_font = font.Font(font_path2, int(50/width*new_width))
         clock_txt = clock_font.render('⌚', True, (0,0,0))
-        time_txt = Text((f"{minute}:{sec:02}"),font_path, int(30/width*new_width), 0, 80/width, 6/height, 100/width, 50/height, (0,0,0))
+        screen.blit(clock_txt, (37/width*new_width, 8/height*new_height))
+        managercl.manage('text', [(f"{tm.strftime('%H:%M:%S', tm.gmtime(end_time-start_time))}"),font_path, int(30/width*new_width), 0, 120/width, 6/height, 100/width, 50/height, (0,0,0)])
         
+        if (end_time-start_time) > 604798 and bool != 'end':
+            bool = funcs.win_lose(field, field2, mistakes)
+    
     #Меню
     if not dif:      
         screen.fill((255,255,255))  
             
         #Текст
-        sudoku = Text('SUDOKU', font_path, 75, 2, 220/width, 145/height, 370/width, 75/height, (0, 185, 255))
-        sudoku.draw(screen, new_width, new_height)
-        author = Text('By Ymnenkaua', font_path, 20, 2, 30/width, 570/height, 200/width, 20/height, ((185, 135, 255)))
-        author.draw(screen, new_width, new_height)
+        managercl = classes.ManagerClasses(screen, new_width, new_height)
+
+        managercl.manage('text', ['SUDOKU', font_path, 75, 2, 220/width, 145/height, 370/width, 75/height, (0, 185, 255)])
+        managercl.manage('text', ['By Ymnenkaua', font_path, 20, 2, 30/width, 570/height, 200/width, 20/height, ((185, 135, 255))])
 
         #Кнопки
-        easy = Button('Easy', None, 200/width, 293/height,384/width,55/height, diff_font, rainbow_colors[4], dir)
-        medium = Button('Medium', None, 200/width, 345/height,384/width,55/height, diff_font, rainbow_colors[1], dir)
-        hard = Button('Hard', None, 200/width, 397/height,384/width,55/height, diff_font, rainbow_colors[0], dir)
-        difficult = Button('Difficult', None, 200/width, 450/height,384/width,55/height, diff_font, (150, 0,0), dir)
-        random = Button('Random', None, 200/width, 500/height, 384/width, 55/height, diff_font, rainbow_colors, dir)
-        help = Button('HELP', None, 560/width, 65/height, 220/width, 50/height, diff_font, (55, 140, 255), dir)
+        managerbut = classes.ManagerButton(screen, new_width, new_height)
 
-        easy.draw(screen, new_width, new_height,None)
-        medium.draw(screen, new_width, new_height,None)
-        hard.draw(screen, new_width, new_height,None)
-        difficult.draw(screen, new_width, new_height,None)
-        random.draw(screen, new_width, new_height,None)
-        help.draw(screen, new_width, new_height,None)
+        managerbut.manage('button', ['Easy', 200/width, 293/height,384/width,55/height, diff_font, rainbow_colors[4]], None)
+        managerbut.manage('button', ['Medium', 200/width, 345/height,384/width,55/height, diff_font, rainbow_colors[1]], None)
+        managerbut.manage('button', ['Hard', 200/width, 397/height,384/width,55/height, diff_font, rainbow_colors[0]], None)
+        managerbut.manage('button', ['Difficult', 200/width, 450/height,384/width,55/height, diff_font, (150, 0,0)], None)
+        managerbut.manage('random', ['Random', 200/width, 500/height, 384/width, 55/height, diff_font, rainbow_colors], None)
+        managerbut.manage('button', ['HELP', 560/width, 65/height, 220/width, 50/height, diff_font, (55, 140, 255)], None)
 
         if not mouse_:
-            yes = Button('keyboard', 'yes.png', 16/width, 15/height, 300/width, 50/height, diff_font, (0,0,0), dir)
-            yes.draw(screen, new_width, new_height, (30/height, 30/height))
-            no = Button('mouse', 'no.png', 16/width, 60/height, 300/width, 50/height, diff_font, (0,0,0), dir)
-            no.draw(screen, new_width, new_height, (30/height, 30/height))
+            managerbut.manage('image', ['yes.png', dir, 'keyboard', 16/width, 15/height, 300/width, 50/height, diff_font, (0,0,0)], (30/height, 30/height))
+            managerbut.manage('image', ['no.png', dir, 'mouse', 16/width, 60/height, 300/width, 50/height, diff_font, (0,0,0)], (30/height, 30/height))
+
         elif not keyboard:
-            no = Button('keyboard', 'no.png', 16/width, 15/height, 300/width, 50/height, diff_font, (0,0,0), dir)
-            no.draw(screen, new_width, new_height, (30/height, 30/height))
-            yes = Button('mouse', 'yes.png', 16/width, 60/height, 300/width, 50/height, diff_font, (0,0,0), dir)
-            yes.draw(screen, new_width, new_height, (30/height, 30/height))
+            managerbut.manage('image', ['yes.png', dir, 'mouse', 16/width, 60/height, 300/width, 50/height, diff_font, (0,0,0)], (30/height, 30/height))
+            managerbut.manage('image', ['no.png', dir, 'keyboard', 16/width, 15/height, 300/width, 50/height, diff_font, (0,0,0)], (30/height, 30/height))
 
         # Форматируем число с разделителем запятой
         locale.setlocale(locale.LC_ALL, '')
         formatted_number = locale.format_string("%d", int(money), grouping=True)
-        coin = Coins('$ ', str(formatted_number), font_path, 524/width, 0/height, 270/width, 50/height)
-        coin.draw(screen, new_width, new_height)
+        managercl.manage('coins', ['$ ', str(formatted_number), font_path, 524/width, 0/height, 270/width, 50/height])
 
     display.update()
